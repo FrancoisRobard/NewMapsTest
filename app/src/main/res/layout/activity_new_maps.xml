@@ -14,13 +14,16 @@
         <android.support.v7.widget.Toolbar
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
-            android:layout_height="?attr/actionBarSize"
-            android:background="?attr/colorPrimary"
+            android:layout_height="56dp"
+            android:background="@color/colorPrimary"
             app:popupTheme="@style/AppTheme.PopupOverlay" />
 
     </android.support.design.widget.AppBarLayout>
 
-    <include layout="@layout/content_new_maps" />
+
+    <include
+        android:id="@+id/include2"
+        layout="@layout/content_new_maps" />
 
     <android.support.design.widget.FloatingActionButton
         android:id="@+id/fab"
@@ -29,5 +32,13 @@
         android:layout_gravity="bottom|center"
         android:layout_margin="@dimen/fab_margin"
         app:srcCompat="@drawable/ic_action_gps_fixed" />
+
+    <android.support.design.widget.FloatingActionButton
+        android:id="@+id/fab2"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|left"
+        android:layout_margin="@dimen/fab_margin"
+        app:srcCompat="@drawable/ic_action_gps_off" />
 
 </android.support.design.widget.CoordinatorLayout>

@@ -8,6 +8,9 @@
     tools:context="com.isep.newmapstest.NewMaps"
     tools:showIn="@layout/activity_new_maps">
 
+
+
+
     <fragment xmlns:android="http://schemas.android.com/apk/res/android"
         xmlns:map="http://schemas.android.com/apk/res-auto"
         xmlns:tools="http://schemas.android.com/tools"
@@ -16,5 +19,30 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         tools:context="com.isep.newmapstest.NewMaps" />
+
+
+
+    <android.support.v7.widget.CardView
+        xmlns:card_view="http://schemas.android.com/apk/res-auto"
+        android:id="@+id/card_view"
+        android:layout_gravity="center"
+        android:layout_width="match_parent"
+        android:layout_height="43dp"
+        android:layout_marginLeft="6dp"
+        android:layout_marginRight="6dp"
+        card_view:cardCornerRadius="6dp">
+
+        <fragment
+            android:id="@+id/place_autocomplete_fragment"
+            android:layout_width="match_parent"
+            android:layout_height="43dp"
+            android:name="com.google.android.gms.location.places.ui.PlaceAutocompleteFragment"
+            android:clickable="true"
+            />
+    </android.support.v7.widget.CardView>
+
+
+
+
 
 </android.support.constraint.ConstraintLayout>
