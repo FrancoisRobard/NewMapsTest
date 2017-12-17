@@ -33,12 +33,4 @@
         android:layout_margin="@dimen/fab_margin"
         app:srcCompat="@drawable/ic_action_gps_fixed" />
 
-    <android.support.design.widget.FloatingActionButton
-        android:id="@+id/fab2"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="bottom|left"
-        android:layout_margin="@dimen/fab_margin"
-        app:srcCompat="@drawable/ic_action_gps_off" />
-
 </android.support.design.widget.CoordinatorLayout>

@@ -59,6 +59,8 @@ import com.google.android.gms.location.places.PlaceLikelihood;
 import com.google.android.gms.location.places.PlaceLikelihoodBufferResponse;
 import com.google.android.gms.location.places.Places;
 // Others imports
+import com.google.android.gms.maps.model.Polygon;
+import com.google.android.gms.maps.model.PolygonOptions;
 import com.google.android.gms.maps.model.PolylineOptions;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
@@ -66,7 +68,7 @@ import com.google.android.gms.tasks.Task;
 import java.util.ArrayList;
 import java.util.List;
 
-public class NewMaps extends AppCompatActivity implements OnMapReadyCallback, GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, View.OnClickListener {
+public class NewMaps extends AppCompatActivity implements OnMapReadyCallback, GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, View.OnClickListener, GoogleMap.OnInfoWindowClickListener {
 
 
     /** ********************************************************************************************
@@ -181,8 +183,6 @@ public class NewMaps extends AppCompatActivity implements OnMapReadyCallback, Go
          */
         FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
         fab.setOnClickListener(this);
-        FloatingActionButton fab2 = (FloatingActionButton) findViewById(R.id.fab2);
-        fab2.setOnClickListener(this);
 
         /** ***************************************************
          *  Creating an instance of the google API client
@@ -314,8 +314,11 @@ public class NewMaps extends AppCompatActivity implements OnMapReadyCallback, Go
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
 
+        // Setting a listener to be able to handle clicks on a
+        mMap.setOnInfoWindowClickListener(this);
+
         // Use a custom info window adapter to handle multiple lines of text in the
-        // info window contents.
+        // info window contents. (the little windows that appears when we click on a marker on the map)
         mMap.setInfoWindowAdapter(new GoogleMap.InfoWindowAdapter() {
 
             @Override
@@ -380,7 +383,7 @@ public class NewMaps extends AppCompatActivity implements OnMapReadyCallback, Go
      * Gets the current location of the device, and positions the map's camera.
      * > The first time this function is called, when its result is triggered,
      *   we will calculate an adapted window around the user and setup the autocomplete
-     *   search bar to provide results only in that window (so the user won't be messed up
+     *   search bar to provide results only around that window (so the user won't be messed up
      *   with information about too far places were he doesn't have time to go to)
      * *********************************************************************************************
      */
@@ -488,137 +491,14 @@ public class NewMaps extends AppCompatActivity implements OnMapReadyCallback, Go
     @Override
     public void onClick(View view) {
         switch(view.getId()){
+            //when the round button a the bottom of the screen is clicked
             case R.id.fab:
                 //displayToast("Floating action button clicked");
-
                 updateLocationUI();
                 getDeviceLocation();
                 break;
-            case R.id.fab2:
-                System.out.println("FAB2 clicked !");
-                //showCurrentPlace();
-                accessibleWindowAroundUser(accessibleKmsAroundUser);
-                break;
         }
     }
-
-
-    /** ********************************************************************************************
-     * Prompts the user to select the current place from a list of likely places, and shows the
-     * current place on the map - provided the user has granted location permission.
-     * NOT REALLY WHAT WE WANT HERE /!\/!\/!\
-     * *********************************************************************************************
-     */
-    private void showCurrentPlace() {
-        if (mMap == null) {
-            return;
-        }
-
-        if (mLocationPermissionGranted) {
-            // Get the likely places - that is, the businesses and other points of interest that
-            // are the best match for the device's current location.
-            @SuppressWarnings("MissingPermission") final
-            Task<PlaceLikelihoodBufferResponse> placeResult = mPlaceDetectionClient.getCurrentPlace(null);
-            placeResult.addOnCompleteListener
-                    (new OnCompleteListener<PlaceLikelihoodBufferResponse>() {
-                        @Override
-                        public void onComplete(@NonNull Task<PlaceLikelihoodBufferResponse> task) {
-                            if (task.isSuccessful() && task.getResult() != null) {
-                                PlaceLikelihoodBufferResponse likelyPlaces = task.getResult();
-
-                                // Set the count, handling cases where less than 5 entries are returned.
-                                int count;
-                                if (likelyPlaces.getCount() < M_MAX_ENTRIES) {
-                                    count = likelyPlaces.getCount();
-                                } else {
-                                    count = M_MAX_ENTRIES;
-                                }
-
-                                int i = 0;
-                                mLikelyPlaceNames = new String[count];
-                                mLikelyPlaceAddresses = new String[count];
-                                mLikelyPlaceAttributions = new String[count];
-                                mLikelyPlaceLatLngs = new LatLng[count];
-
-                                for (PlaceLikelihood placeLikelihood : likelyPlaces) {
-                                    // Build a list of likely places to show the user.
-                                    mLikelyPlaceNames[i] = (String) placeLikelihood.getPlace().getName();
-                                    mLikelyPlaceAddresses[i] = (String) placeLikelihood.getPlace()
-                                            .getAddress();
-                                    mLikelyPlaceAttributions[i] = (String) placeLikelihood.getPlace()
-                                            .getAttributions();
-                                    mLikelyPlaceLatLngs[i] = placeLikelihood.getPlace().getLatLng();
-
-                                    i++;
-                                    if (i > (count - 1)) {
-                                        break;
-                                    }
-                                }
-
-                                // Release the place likelihood buffer, to avoid memory leaks.
-                                likelyPlaces.release();
-
-                                // Show a dialog offering the user the list of likely places, and add a
-                                // marker at the selected place.
-                                openPlacesDialog();
-
-                            } else {
-                                Log.e(TAG, "Exception: %s", task.getException());
-                            }
-                        }
-                    });
-        } else {
-            // The user has not granted permission.
-            Log.i(TAG, "The user did not grant location permission.");
-
-            // Add a default marker, because the user hasn't selected a place.
-            mMap.addMarker(new MarkerOptions()
-                    .title(getString(R.string.default_info_title))
-                    .position(mDefaultLocation)
-                    .snippet(getString(R.string.default_info_snippet)));
-
-            // Prompt the user for permission.
-            getLocationPermission();
-        }
-    }
-
-
-    /** ********************************************************************************************
-     * Displays a form allowing the user to select a place from a list of likely places.
-     * *********************************************************************************************
-     */
-    private void openPlacesDialog() {
-        // Ask the user to choose the place where they are now.
-        DialogInterface.OnClickListener listener = new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                // The "which" argument contains the position of the selected item.
-                LatLng markerLatLng = mLikelyPlaceLatLngs[which];
-                String markerSnippet = mLikelyPlaceAddresses[which];
-                if (mLikelyPlaceAttributions[which] != null) {
-                    markerSnippet = markerSnippet + "\n" + mLikelyPlaceAttributions[which];
-                }
-
-                // Add a marker for the selected place, with an info window
-                // showing information about that place.
-                mMap.addMarker(new MarkerOptions()
-                        .title(mLikelyPlaceNames[which])
-                        .position(markerLatLng)
-                        .snippet(markerSnippet));
-
-                // Position the map's camera at the location of the marker.
-                mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(markerLatLng,
-                        DEFAULT_ZOOM));
-            }
-        };
-
-        // Display the dialog.
-        AlertDialog dialog = new AlertDialog.Builder(this)
-                .setTitle(R.string.pick_place)
-                .setItems(mLikelyPlaceNames, listener)
-                .show();
-    }
-
 
 
     /** ********************************************************************************************
@@ -661,6 +541,7 @@ public class NewMaps extends AppCompatActivity implements OnMapReadyCallback, Go
     /** ********************************************************************************************
      *  Defines the bound of a square window around the user (x Kms wide in each direction).
      *  This windows is calculated to contain places accessible in a given amount of Kms to walk (that will be calculated given the amount of time available).
+     *  A red square is drawn on the map to represent the window in which the user can search a place.
      *  ********************************************************************************************"
      */
     private LatLngBounds accessibleWindowAroundUser(double accessibleKms){
@@ -674,9 +555,9 @@ public class NewMaps extends AppCompatActivity implements OnMapReadyCallback, Go
             // use the real location if available
             currentLat = mLastKnownLocation.getLatitude();
             currentLong = mLastKnownLocation.getLongitude();
-            System.out.println("Current position was not null ...");
+            System.out.println("Current position was not null when calculating the window around the user !");
         }else{
-            System.out.println("Current position was null ...");
+            System.out.println("Current position was null when calculating the window around the user...");
         }
 
         // Calculating the Latitude to add to the current position to set se position to 1km north of the current position
@@ -689,8 +570,17 @@ public class NewMaps extends AppCompatActivity implements OnMapReadyCallback, Go
         LatLng windowSouthWestBound = new LatLng(currentLat-accessibleKms*LatForOneKm, currentLong-accessibleKms*LongForOneKm);
         LatLng windowNorthEastBound = new LatLng(currentLat+accessibleKms*LatForOneKm, currentLong+accessibleKms*LongForOneKm);
 
-        mMap.addMarker(new MarkerOptions().position(windowSouthWestBound).title("Window south west bound"));
-        mMap.addMarker(new MarkerOptions().position(windowNorthEastBound).title("Window north east bound"));
+        //mMap.addMarker(new MarkerOptions().position(windowSouthWestBound).title("Window south west bound"));
+        //mMap.addMarker(new MarkerOptions().position(windowNorthEastBound).title("Window north east bound"));
+
+        // Instantiates a new Polygon object and adds points to define a square representing the window defined around the user
+        // Calculating the two other points
+        LatLng windowNorthWestBound = new LatLng(currentLat+accessibleKms*LatForOneKm, currentLong-accessibleKms*LongForOneKm);
+        LatLng windowSouthEastBound = new LatLng(currentLat-accessibleKms*LatForOneKm, currentLong+accessibleKms*LongForOneKm);
+        PolygonOptions windowOptions = new PolygonOptions().add(windowSouthWestBound, windowNorthWestBound, windowNorthEastBound, windowSouthEastBound, windowSouthWestBound);
+        windowOptions.strokeColor(Color.RED).strokeWidth(8);
+        // Get back the mutable Polygon
+        Polygon polygon = mMap.addPolygon(windowOptions);
 
         // Finally the objects that defines the bounds of our accessible window around the user
         LatLngBounds windowAroudUser = new LatLngBounds(windowSouthWestBound, windowNorthEastBound);
@@ -754,13 +644,13 @@ public class NewMaps extends AppCompatActivity implements OnMapReadyCallback, Go
     /** ***************************************************
      *  Allowing the use of the results of the "Autocomplete" Places search bar
      *   The search bar is set here to retrieve only results that are of type 'Establishment'
-     *      and only establishments that are in an adapted window around the user (set by the 'accessibleWindowAroundUser' method)
+     *      and only establishments that are around the adapted window around the user (set by the 'accessibleWindowAroundUser' method) can be searched
      *
      *   When a Place is selected through the search bar ...
      *  ***************************************************
      */
+    private Marker researchResponseMarker;
     private void initializeSearchBar(){
-
         PlaceAutocompleteFragment autocompleteFragment = (PlaceAutocompleteFragment) getFragmentManager().findFragmentById(R.id.place_autocomplete_fragment);
         // Setting bounds for the results of the requests (unsing our function to find adapted bounds around the user)
         autocompleteFragment.setBoundsBias(accessibleWindowAroundUser(accessibleKmsAroundUser));
@@ -774,17 +664,59 @@ public class NewMaps extends AppCompatActivity implements OnMapReadyCallback, Go
 
             @Override
             public void onPlaceSelected(Place place) {
-                // TODO: Get info about the selected place.
-                Log.i(TAG, "Place: " + place.getName());
+                //Log.i(TAG, "Place: " + place.getName());
+
+                // When a place is selected in the Serach bar, a marker is added to the map
+                researchResponseMarker = mMap.addMarker(new MarkerOptions().position(place.getLatLng()).title((String)place.getName()).snippet("Click for more details ..."));
+                researchResponseMarker.setTag(new CustomTag(place));
+                researchResponseMarker.showInfoWindow();
+
+                // And the camera is moved to this place
+                mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(place.getLatLng(), DEFAULT_ZOOM));
+
+
             }
 
             @Override
             public void onError(Status status) {
-                // TODO: Handle the error.
-                Log.i(TAG, "An error occurred: " + status);
+                // TODO: Handle the error.Log.i(TAG, "An error occurred: " + status);
             }
         });
     }
+
+
+    /** ********************************************************************************************
+     *  Setting up a custom tag object that also lets the possibility to store the Place object associated with it
+     *  ********************************************************************************************
+     */
+    private static class CustomTag {
+        private final Place place;
+
+        public CustomTag(Place givenPlace) {
+            this.place = givenPlace;
+        }
+
+        public Place getPlace(){
+            return place;
+        }
+
+    }
+
+    /** ********************************************************************************************
+     *  When the info window associated with a tag is clicked, retrieve the associated place and
+     *  launches a new 'place details' activity to show its content.
+     * *********************************************************************************************
+     * @param marker
+     */
+    @Override
+    public void onInfoWindowClick(Marker marker) {
+        CustomTag clickedTag = (CustomTag) marker.getTag();
+        Place associatedPlace = clickedTag.getPlace();
+        //Intent placeDetails = new Intent(this, placeDetails.class);
+        //placeDetails.putExtra("placeID",associatedPlace.getId());
+        //startActivity(placeDetails);
+    }
+
 
 
 
