@@ -5,11 +5,11 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.graphics.Color;
 import android.location.Location;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.design.widget.FloatingActionButton;
-import android.support.design.widget.Snackbar;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentActivity;
 import android.support.v4.content.ContextCompat;
@@ -59,6 +59,7 @@ import com.google.android.gms.location.places.PlaceLikelihood;
 import com.google.android.gms.location.places.PlaceLikelihoodBufferResponse;
 import com.google.android.gms.location.places.Places;
 // Others imports
+import com.google.android.gms.maps.model.PolylineOptions;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
 
@@ -67,6 +68,7 @@ import java.util.List;
 
 public class NewMaps extends AppCompatActivity implements OnMapReadyCallback, GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, View.OnClickListener {
 
+
     /** ********************************************************************************************
      *  Variables declaration
      * *********************************************************************************************
@@ -74,56 +76,52 @@ public class NewMaps extends AppCompatActivity implements OnMapReadyCallback, Go
 
     // Name of the class
     private static final String TAG = NewMaps.class.getSimpleName();
+    // Variable to use when a reference to the current activity is needed as a parameter in a nested method (in this case "this" does not refer to the current activity)
+    Activity thisActivity = this;
 
-    // Google maps object
-    private GoogleMap mMap;
-
-    // Variable to store the current position of the camera (= display window)
-    private CameraPosition mCameraPosition;
-
-    // The entry points to the Places API.
-    private GoogleApiClient mGoogleApiClient;
-    private GeoDataClient mGeoDataClient; // Gives access to places API database
+    // The entry points to the Maps & Places API.
+    private GoogleMap mMap;                     // Google maps object
+    private GoogleApiClient mGoogleApiClient;   // Connexion to google maps API
+    private GeoDataClient mGeoDataClient;       // Gives access to places API database
     private PlaceDetectionClient mPlaceDetectionClient; // Allow to find the places around the user
+    private FusedLocationProviderClient mFusedLocationProviderClient; // An object to retrieve current position
 
-    // An object to retrieve current position
-    private FusedLocationProviderClient mFusedLocationProviderClient;
-
-    // Default position for the Camera (Paris)
-    private final LatLng mDefaultLocation = new LatLng(48.864716, 	2.349014);
-    //Default zoom for the camera
-    private static final int DEFAULT_ZOOM = 15;
-
-    // Identifier for the location rights request (usen to identify the response corresponding to this request in the onRequestPermissionsResult method
-    public static final int MY_PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION = 1;
-    public static final int PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION = 2;
-
-    // Flag to indicates if the access to location was granted (if no we will ask for permission, if refused we will use a default position)
+    // A flag to indicates if the access to location was granted (if no we will ask for permission, if refused we will use a default position)
     private boolean mLocationPermissionGranted;
+    // Identifiers for the location rights requests (usen to identify the response corresponding to this request in the onRequestPermissionsResult method
+    public static final int PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION = 1; // When the request is made during the first load of the class
+    public static final int MY_PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION = 2; // If the request has been refused during initialisation and that an other request is needed
 
     // The geographical location where the device is currently located. That is, the last-known location retrieved by the Fused Location Provider.
     private Location mLastKnownLocation;
-
+    // Variable to store the current position of the camera (= display window)
+    private CameraPosition mCameraPosition;
+    // Default position for the Camera (Paris)
+    private final LatLng mDefaultLocation = new LatLng(48.864716, 	2.349014);
+    //Default zoom for the camera
+    private static final int DEFAULT_ZOOM = 16;
     // Keys for storing activity state (saving the last known place and the current camera position)
     private static final String KEY_CAMERA_POSITION = "camera_position";
     private static final String KEY_LOCATION = "location";
 
-    // Used for selecting the current place.
+    // Identifier for the answer to a place picker request
+    int PLACE_PICKER_REQUEST = 3;
+    // Place Picker elements, used to launch a google "place picker" activity
+    PlacePicker.IntentBuilder builder = new PlacePicker.IntentBuilder();
+
+    // Variable defining the accessible Kms around the user
+    double accessibleKmsAroundUser;
+
+    // Flag to know if the autocomplete search bar has already been initialized
+    boolean isSearchbarInitialized = false;
+
+
+    // Used for selecting the current place. (Not needed anymore ?)
     private static final int M_MAX_ENTRIES = 5;
     private String[] mLikelyPlaceNames;
     private String[] mLikelyPlaceAddresses;
     private String[] mLikelyPlaceAttributions;
     private LatLng[] mLikelyPlaceLatLngs;
-
-    // Identifier for the answer to a place picker request
-    int PLACE_PICKER_REQUEST = 3;
-    // Place Picker elements, usen to launch a google "place picker" activity
-    PlacePicker.IntentBuilder builder = new PlacePicker.IntentBuilder();
-
-    // Variable to use when a reference to the current activity is needed as a parameter in a nested method (in this case "this" does not refer to the current activity)
-    Activity thisActivity = this;
-
-
 
 
 
@@ -137,39 +135,24 @@ public class NewMaps extends AppCompatActivity implements OnMapReadyCallback, Go
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        /** **************************************************
-         * Render the layout (containing the map)
-         * ***************************************************
-         */
+        // Render the layout (containing the map)
         setContentView(R.layout.activity_new_maps);
 
-        /** **************************************************
-         * Retrieve location and camera position from saved instance state.
-         * ***************************************************
-         */
+        // Retrieve location and camera position from saved instance state.
         if (savedInstanceState != null) {
             mLastKnownLocation = savedInstanceState.getParcelable(KEY_LOCATION);
             mCameraPosition = savedInstanceState.getParcelable(KEY_CAMERA_POSITION);
         }
 
-        /** **************************************************
-         * Construct a GeoDataClient. (to give access to the Places API database)
-         * ***************************************************
-         */
+        // Retrieve the nb of kilometers the user can walk from the intent that launched the current class
+        accessibleKmsAroundUser = getIntent().getIntExtra("accessibleKms", 2);
+
+        //Construct a GeoDataClient. (to give access to the Places API database)
         mGeoDataClient = Places.getGeoDataClient(this, null);
-
-        /** **************************************************
-         * Construct a PlaceDetectionClient. (to allow to find most likely current place)
-         * ***************************************************
-         */
+        // Construct a PlaceDetectionClient. (to allow to find most likely current place)
         mPlaceDetectionClient = Places.getPlaceDetectionClient(this, null);
-
-        /** **************************************************
-         * Construct a FusedLocationProviderClient. (to find th
-         * ***************************************************
-         */
+        // Construct a FusedLocationProviderClient. (to find the current position of the user)
         mFusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(this);
-
 
         /** **************************************************
          *  Setting up the toolbar
@@ -198,53 +181,43 @@ public class NewMaps extends AppCompatActivity implements OnMapReadyCallback, Go
          */
         FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
         fab.setOnClickListener(this);
-        FloatingActionButton fab2 = (FloatingActionButton) findViewById(R.id.fab);
-        fab.setOnClickListener(this);
+        FloatingActionButton fab2 = (FloatingActionButton) findViewById(R.id.fab2);
+        fab2.setOnClickListener(this);
 
         /** ***************************************************
          *  Creating an instance of the google API client
          *  ***************************************************
          */
-        mGoogleApiClient = new GoogleApiClient
-                .Builder(this)
+        mGoogleApiClient = new GoogleApiClient.Builder(this)
                 .addApi(Places.GEO_DATA_API)
                 .addApi(Places.PLACE_DETECTION_API)
                 .enableAutoManage(this, this)
                 .build();
+    }
 
 
-        /** ***************************************************
-         *  Allowing the use of the results of the "Autocomplete" Places search bar
-         *  ***************************************************
-         */
-        PlaceAutocompleteFragment autocompleteFragment = (PlaceAutocompleteFragment)
-                getFragmentManager().findFragmentById(R.id.place_autocomplete_fragment);
-        // Setting bounds for the results of the requests (here bounds around Paris)
-        autocompleteFragment.setBoundsBias(new LatLngBounds(
-                new LatLng(48.8, 2.24),
-                new LatLng(48.91, 2.43)));
-        // Setting a filter for the places type
-        AutocompleteFilter typeFilter = new AutocompleteFilter.Builder().setTypeFilter(AutocompleteFilter.TYPE_FILTER_ESTABLISHMENT).build();
-            // The only filter available for android Places API are :
-            //TYPE_FILTER_NONE ,TYPE_FILTER_GEOCODE, TYPE_FILTER_ADDRESS, TYPE_FILTER_ESTABLISHMENT, TYPE_FILTER_REGIONS, TYPE_FILTER_CITIES
-            // So to get a more precise filter we need filter the results of the query ourselves
-        autocompleteFragment.setFilter(typeFilter);
-        autocompleteFragment.setOnPlaceSelectedListener(new PlaceSelectionListener() {
-
-            @Override
-            public void onPlaceSelected(Place place) {
-                // TODO: Get info about the selected place.
-                Log.i(TAG, "Place: " + place.getName());
-            }
-
-            @Override
-            public void onError(Status status) {
-                // TODO: Handle the error.
-                Log.i(TAG, "An error occurred: " + status);
-            }
-        });
+    /** ********************************************************************************************
+     * When the user comes (back) to this activity, we (re)connects the API to the Maps API.
+     * *********************************************************************************************
+     */
+    @Override
+    protected void onStart() {
+        super.onStart();
+        if (mGoogleApiClient != null)
+            mGoogleApiClient.connect();
+    }
 
 
+    /** ********************************************************************************************
+     * When the user switches to an other Applcation/Activity, we disconnect the activity from the Maps API.
+     * *********************************************************************************************
+     */
+    @Override
+    protected void onStop() {
+        if (mGoogleApiClient != null && mGoogleApiClient.isConnected()) {
+            mGoogleApiClient.disconnect();
+        }
+        super.onStop();
     }
 
 
@@ -289,7 +262,7 @@ public class NewMaps extends AppCompatActivity implements OnMapReadyCallback, Go
 
 
     /** ********************************************************************************************
-     * Defining the action to do when the buttons of the toolbar are clicked
+     * Defining the actions to perform when the buttons of the toolbar are clicked
      * *********************************************************************************************
      * @param item
      * @return
@@ -322,26 +295,24 @@ public class NewMaps extends AppCompatActivity implements OnMapReadyCallback, Go
     }
 
 
-
-
     /** ********************************************************************************************
      * Manipulates the map once available.
      * This callback is triggered when the map is ready to be used.
-     * This is where we can add markers or lines, add listeners or move the camera. In this case,
-     * we just add a marker near Paris, France.
-     * If Google Play services is not installed on the device, the user will be prompted to install
-     * it inside the SupportMapFragment. This method will only be triggered once the user has
-     * installed Google Play services and returned to the app.
+     * This is where we can add markers or lines, add listeners or move the camera...
+     *
+     * Here we will :   > set the window info element
+     *                  > Get permissions if not already done
+     *                  > Update the blue dot on the map identifying the user position
+     *                  > Get the used location with the 'FusedLocationProviderClient' object, and set the camera to the current position with a default zoom
+     *                          > The first time we call the 'getLocation' function, when its result is triggered,
+     *                                  we will calculate an adapted window around the user and setup the autocomplete
+     *                                  search bar to provide results only in that window (so the user won't be messed up
+     *                                  with information about too far places were he doesn't have time to go to)
      * *********************************************************************************************
      */
     @Override
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
-
-        // Add a marker in Paris and move the camera
-        //LatLng paris = defaultLocation;
-        //mMap.addMarker(new MarkerOptions().position(paris).title("Marker in Paris"));
-        //mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(paris,DEFAULT_ZOOM));//newLatLng(placeLatLng));
 
         // Use a custom info window adapter to handle multiple lines of text in the
         // info window contents.
@@ -368,19 +339,49 @@ public class NewMaps extends AppCompatActivity implements OnMapReadyCallback, Go
             }
         });
 
-        // Prompt the user for permission.
+        // Prompt the user for permissions (for accessing location).
         getLocationPermission();
 
-        // Turn on the My Location layer and the related control on the map.
+        // Turn on the 'My Location' layer = the blue dot indicating the current user position
+        // and the circle around indicating the accuracy of the location.
         updateLocationUI();
 
         // Get the current location of the device and set the position of the map.
         getDeviceLocation();
+
+    }
+
+
+    /** ********************************************************************************************
+     * Updates the map's UI settings based on whether the user has granted location permission.
+     * *********************************************************************************************
+     */
+    private void updateLocationUI() {
+        if (mMap == null) {
+            return;
+        }
+        try {
+            if (mLocationPermissionGranted) {
+                mMap.setMyLocationEnabled(true);
+                mMap.getUiSettings().setMyLocationButtonEnabled(true);
+            } else {
+                mMap.setMyLocationEnabled(false);
+                mMap.getUiSettings().setMyLocationButtonEnabled(false);
+                mLastKnownLocation = null;
+                getLocationPermission();
+            }
+        } catch (SecurityException e)  {
+            Log.e("Exception: %s", e.getMessage());
+        }
     }
 
 
     /** ********************************************************************************************
      * Gets the current location of the device, and positions the map's camera.
+     * > The first time this function is called, when its result is triggered,
+     *   we will calculate an adapted window around the user and setup the autocomplete
+     *   search bar to provide results only in that window (so the user won't be messed up
+     *   with information about too far places were he doesn't have time to go to)
      * *********************************************************************************************
      */
     private void getDeviceLocation() {
@@ -399,8 +400,16 @@ public class NewMaps extends AppCompatActivity implements OnMapReadyCallback, Go
                         if (task.isSuccessful()) {
                             // Set the map's camera position to the current location of the device.
                             mLastKnownLocation = task.getResult();
-                            mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(
-                                    new LatLng(mLastKnownLocation.getLatitude(), mLastKnownLocation.getLongitude()), DEFAULT_ZOOM));
+                            //mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(mLastKnownLocation.getLatitude(), mLastKnownLocation.getLongitude()), DEFAULT_ZOOM));
+                            // The 'animateCamera' makes the move smoother than the 'moveCamera' function
+                            mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(mLastKnownLocation.getLatitude(), mLastKnownLocation.getLongitude()), DEFAULT_ZOOM));
+
+                            // Now that the current position is initialised, we can calculated the appropriate window around the user and set the search bar on that window
+                            if(!isSearchbarInitialized){
+                                initializeSearchBar();
+                                isSearchbarInitialized = true;
+                            }
+
                         } else {
                             Log.d(TAG, "Current location is null. Using defaults.");
                             Log.e(TAG, "Exception: %s", task.getException());
@@ -480,72 +489,15 @@ public class NewMaps extends AppCompatActivity implements OnMapReadyCallback, Go
     public void onClick(View view) {
         switch(view.getId()){
             case R.id.fab:
-                displayToast("Floating action button clicked");
-                if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-                    System.out.println("ACCESS_FINE_LOCATION permission missing");
-                    // TODO: Consider calling
-                    //    ActivityCompat#requestPermissions
-                    // here to request the missing permissions, and then overriding
-                    //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-                    //                                          int[] grantResults)
-                    // to handle the case where the user grants the permission. See the documentation
-                    // for ActivityCompat#requestPermissions for more details.
+                //displayToast("Floating action button clicked");
 
-                    // Asking the user the permission to access
-                    ActivityCompat.requestPermissions(thisActivity, new String[]{android.Manifest.permission.ACCESS_FINE_LOCATION}, MY_PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION);
-                    // MY_PERMISSIONS_REQUEST_READ_CONTACTS is an
-                    // app-defined int constant. The callback method gets the
-                    // result of the request.
-                    //}
-                    //return;
-                }else{
-
-                    // Look for the Places around the user
-                    List<String> filters=new ArrayList<>();
-                    filters.add(String.valueOf(Place.TYPE_STREET_ADDRESS));
-
-                    PlaceFilter placeFilter = new PlaceFilter(true,filters);
-
-
-                    PendingResult<PlaceLikelihoodBuffer> result = Places.PlaceDetectionApi.getCurrentPlace(mGoogleApiClient,null );
-                    result.setResultCallback(new ResultCallback<PlaceLikelihoodBuffer>() {
-                        @Override
-                        public void onResult(PlaceLikelihoodBuffer likelyPlaces) {
-                            System.out.println("onResult called ");
-                            boolean cameraMoved = false;
-                            for (PlaceLikelihood placeLikelihood : likelyPlaces) {
-                                float placeLkyhd = placeLikelihood.getLikelihood();
-                                Place place = placeLikelihood.getPlace();
-                                LatLng placeLatLng = place.getLatLng();
-                                    //Moving the camera to first returned place (most likely place) --> would be better with real place !! and blue current place marker
-                                    if(!cameraMoved){
-                                        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(placeLatLng,DEFAULT_ZOOM));//newLatLng(placeLatLng));
-                                        System.out.println("camera moved !");
-                                        cameraMoved=true;
-                                    }
-
-                                String placeName = (String) place.getName();
-                                List<Integer> placeType = place.getPlaceTypes();
-
-                                String typeslist = "";
-                                for(int type : placeType){
-                                    typeslist=typeslist+";"+type;
-                                }
-                                System.out.println("Place : "+placeName+" has likelyhood : "+placeLkyhd+" and types : "+typeslist);
-                                //Log.i(TAG, String.format("Place '%s' has likelihood: %g",placeLikelihood.getPlace().getName(),placeLikelihood.getLikelihood()));
-                                mMap.addMarker(new MarkerOptions().position(placeLatLng).title(placeName));
-
-
-                            }
-                            likelyPlaces.release();
-                        }
-                    });
-                }
-
+                updateLocationUI();
+                getDeviceLocation();
                 break;
             case R.id.fab2:
                 System.out.println("FAB2 clicked !");
-                showCurrentPlace();
+                //showCurrentPlace();
+                accessibleWindowAroundUser(accessibleKmsAroundUser);
                 break;
         }
     }
@@ -668,30 +620,6 @@ public class NewMaps extends AppCompatActivity implements OnMapReadyCallback, Go
     }
 
 
-    /** ********************************************************************************************
-     * Updates the map's UI settings based on whether the user has granted location permission.
-     * *********************************************************************************************
-     */
-    private void updateLocationUI() {
-        if (mMap == null) {
-            return;
-        }
-        try {
-            if (mLocationPermissionGranted) {
-                mMap.setMyLocationEnabled(true);
-                mMap.getUiSettings().setMyLocationButtonEnabled(true);
-            } else {
-                mMap.setMyLocationEnabled(false);
-                mMap.getUiSettings().setMyLocationButtonEnabled(false);
-                mLastKnownLocation = null;
-                getLocationPermission();
-            }
-        } catch (SecurityException e)  {
-            Log.e("Exception: %s", e.getMessage());
-        }
-    }
-
-
 
     /** ********************************************************************************************
      * Method from abstract parent classes onConnectionFailedListener and onMapReadyCallback that must be implemented
@@ -718,10 +646,148 @@ public class NewMaps extends AppCompatActivity implements OnMapReadyCallback, Go
 
     }
 
+
+    /** ********************************************************************************************
+     * This method needed to be called but i don't know what to put inside
+     * *********************************************************************************************
+     * @param hasCapture
+     */
     @Override
     public void onPointerCaptureChanged(boolean hasCapture) {
         
     }
+
+
+    /** ********************************************************************************************
+     *  Defines the bound of a square window around the user (x Kms wide in each direction).
+     *  This windows is calculated to contain places accessible in a given amount of Kms to walk (that will be calculated given the amount of time available).
+     *  ********************************************************************************************"
+     */
+    private LatLngBounds accessibleWindowAroundUser(double accessibleKms){
+        System.out.println("Hello, calculating the window ...");
+
+        // Getting the current position from default location (in the case the current location is null)
+        double currentLat = mDefaultLocation.latitude;
+        double currentLong = mDefaultLocation.longitude;
+
+        if(mLastKnownLocation!=null){
+            // use the real location if available
+            currentLat = mLastKnownLocation.getLatitude();
+            currentLong = mLastKnownLocation.getLongitude();
+            System.out.println("Current position was not null ...");
+        }else{
+            System.out.println("Current position was null ...");
+        }
+
+        // Calculating the Latitude to add to the current position to set se position to 1km north of the current position
+        double LatForOneKm = (1/110.574);
+        // Calculating the Longitude to add to the current position to set se position to 1km east of the current position
+        //  (depends on the latitude we are at, for this calculus we will approximate the Latitude to be approximately the same within our window around the user)
+        double LongForOneKm =(1/(111.320*Math.cos(Math.toRadians(currentLat))));
+
+        // Calculating the Bottom Left (South West) and Top Right (North East) bounds of our window around the user, given the amount of kms we think he can walk
+        LatLng windowSouthWestBound = new LatLng(currentLat-accessibleKms*LatForOneKm, currentLong-accessibleKms*LongForOneKm);
+        LatLng windowNorthEastBound = new LatLng(currentLat+accessibleKms*LatForOneKm, currentLong+accessibleKms*LongForOneKm);
+
+        mMap.addMarker(new MarkerOptions().position(windowSouthWestBound).title("Window south west bound"));
+        mMap.addMarker(new MarkerOptions().position(windowNorthEastBound).title("Window north east bound"));
+
+        // Finally the objects that defines the bounds of our accessible window around the user
+        LatLngBounds windowAroudUser = new LatLngBounds(windowSouthWestBound, windowNorthEastBound);
+        return windowAroudUser;
+    }
+
+
+
+    private void setMarkersAroundUser(){
+        // Here the location needs to be enabled, if is not the case we ask it (but they should already have been asked during the first launch f the class)
+        if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            System.out.println("ACCESS_FINE_LOCATION permission missing");
+            ActivityCompat.requestPermissions(thisActivity, new String[]{android.Manifest.permission.ACCESS_FINE_LOCATION}, MY_PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION);
+        }//else{
+
+            // Look for the Places around the user
+            List<String> filters=new ArrayList<>();
+            filters.add(String.valueOf(Place.TYPE_STREET_ADDRESS));
+
+            PlaceFilter placeFilter = new PlaceFilter(true,filters);
+
+
+            PendingResult<PlaceLikelihoodBuffer> result = Places.PlaceDetectionApi.getCurrentPlace(mGoogleApiClient,null );
+            result.setResultCallback(new ResultCallback<PlaceLikelihoodBuffer>() {
+                @Override
+                public void onResult(PlaceLikelihoodBuffer likelyPlaces) {
+                    System.out.println("onResult called ");
+                    boolean cameraMoved = false;
+                    for (PlaceLikelihood placeLikelihood : likelyPlaces) {
+                        float placeLkyhd = placeLikelihood.getLikelihood();
+                        Place place = placeLikelihood.getPlace();
+                        LatLng placeLatLng = place.getLatLng();
+                        //Moving the camera to first returned place (most likely place) --> would be better with real place !! and blue current place marker
+                        if(!cameraMoved){
+                            mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(placeLatLng,DEFAULT_ZOOM));//newLatLng(placeLatLng));
+                            System.out.println("camera moved !");
+                            cameraMoved=true;
+                        }
+
+                        String placeName = (String) place.getName();
+                        List<Integer> placeType = place.getPlaceTypes();
+
+                        String typeslist = "";
+                        for(int type : placeType){
+                            typeslist=typeslist+";"+type;
+                        }
+                        System.out.println("Place : "+placeName+" has likelyhood : "+placeLkyhd+" and types : "+typeslist);
+                        //Log.i(TAG, String.format("Place '%s' has likelihood: %g",placeLikelihood.getPlace().getName(),placeLikelihood.getLikelihood()));
+                        mMap.addMarker(new MarkerOptions().position(placeLatLng).title(placeName));
+
+
+                    }
+                    likelyPlaces.release();
+                }
+            });
+        //}
+
+    }
+
+
+    /** ***************************************************
+     *  Allowing the use of the results of the "Autocomplete" Places search bar
+     *   The search bar is set here to retrieve only results that are of type 'Establishment'
+     *      and only establishments that are in an adapted window around the user (set by the 'accessibleWindowAroundUser' method)
+     *
+     *   When a Place is selected through the search bar ...
+     *  ***************************************************
+     */
+    private void initializeSearchBar(){
+
+        PlaceAutocompleteFragment autocompleteFragment = (PlaceAutocompleteFragment) getFragmentManager().findFragmentById(R.id.place_autocomplete_fragment);
+        // Setting bounds for the results of the requests (unsing our function to find adapted bounds around the user)
+        autocompleteFragment.setBoundsBias(accessibleWindowAroundUser(accessibleKmsAroundUser));
+        // Setting a filter for the places type
+        AutocompleteFilter typeFilter = new AutocompleteFilter.Builder().setTypeFilter(AutocompleteFilter.TYPE_FILTER_ESTABLISHMENT).build();
+        // The only filter available for android Places API are :
+        //TYPE_FILTER_NONE ,TYPE_FILTER_GEOCODE, TYPE_FILTER_ADDRESS, TYPE_FILTER_ESTABLISHMENT, TYPE_FILTER_REGIONS, TYPE_FILTER_CITIES
+        // So to get a more precise filter we need filter the results of the query ourselves
+        autocompleteFragment.setFilter(typeFilter);
+        autocompleteFragment.setOnPlaceSelectedListener(new PlaceSelectionListener() {
+
+            @Override
+            public void onPlaceSelected(Place place) {
+                // TODO: Get info about the selected place.
+                Log.i(TAG, "Place: " + place.getName());
+            }
+
+            @Override
+            public void onError(Status status) {
+                // TODO: Handle the error.
+                Log.i(TAG, "An error occurred: " + status);
+            }
+        });
+    }
+
+
+
 
 
 }

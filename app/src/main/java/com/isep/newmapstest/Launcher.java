@@ -36,6 +36,8 @@ public class Launcher extends AppCompatActivity implements View.OnClickListener 
                 // An intent is a set of data that can be passed from an app component to another
                 // (each app component is running in a "sandbox" that lets it do an access only what we granted it. An intent is a way of communication between those components)
                 Intent nMap = new Intent(Launcher.this, NewMaps.class);
+                double accessibleKmsAroundUser = 1;
+                nMap.putExtra("accessibleKms", 2);
                 startActivity(nMap);
                 break;
             case R.id.button_display_place_picker:
