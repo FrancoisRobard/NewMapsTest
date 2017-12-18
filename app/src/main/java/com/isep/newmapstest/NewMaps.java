@@ -716,9 +716,9 @@ public class NewMaps extends AppCompatActivity implements OnMapReadyCallback, Go
     public void onInfoWindowClick(Marker marker) {
         CustomTag clickedTag = (CustomTag) marker.getTag();
         Place associatedPlace = clickedTag.getPlace();
-        //Intent placeDetails = new Intent(this, placeDetails.class);
-        //placeDetails.putExtra("placeID",associatedPlace.getId());
-        //startActivity(placeDetails);
+        Intent placeDetails = new Intent(this, PlaceDetails.class);
+        placeDetails.putExtra("placeID",associatedPlace.getId());
+        startActivity(placeDetails);
     }
 
 
