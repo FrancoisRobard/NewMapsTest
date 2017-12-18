@@ -117,6 +117,9 @@ public class NewMaps extends AppCompatActivity implements OnMapReadyCallback, Go
     // Flag to know if the autocomplete search bar has already been initialized
     boolean isSearchbarInitialized = false;
 
+    // Marker to show the results of a request in the autocomplete search bar
+    private Marker researchResponseMarker;
+
 
     // Used for selecting the current place. (Not needed anymore ?)
     private static final int M_MAX_ENTRIES = 5;
@@ -646,10 +649,10 @@ public class NewMaps extends AppCompatActivity implements OnMapReadyCallback, Go
      *   The search bar is set here to retrieve only results that are of type 'Establishment'
      *      and only establishments that are around the adapted window around the user (set by the 'accessibleWindowAroundUser' method) can be searched
      *
-     *   When a Place is selected through the search bar ...
+     *   When a Place is selected through the search bar, display a marker on its position on the map. The info window of the marker is automatically activated.
+     *   The camera is then centered on this position.
      *  ***************************************************
      */
-    private Marker researchResponseMarker;
     private void initializeSearchBar(){
         PlaceAutocompleteFragment autocompleteFragment = (PlaceAutocompleteFragment) getFragmentManager().findFragmentById(R.id.place_autocomplete_fragment);
         // Setting bounds for the results of the requests (unsing our function to find adapted bounds around the user)
@@ -701,6 +704,7 @@ public class NewMaps extends AppCompatActivity implements OnMapReadyCallback, Go
         }
 
     }
+
 
     /** ********************************************************************************************
      *  When the info window associated with a tag is clicked, retrieve the associated place and
