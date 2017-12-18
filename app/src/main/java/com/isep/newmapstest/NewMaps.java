@@ -45,6 +45,7 @@ import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.LatLngBounds;
@@ -66,6 +67,7 @@ import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public class NewMaps extends AppCompatActivity implements OnMapReadyCallback, GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, View.OnClickListener, GoogleMap.OnInfoWindowClickListener {
@@ -120,13 +122,28 @@ public class NewMaps extends AppCompatActivity implements OnMapReadyCallback, Go
     // Marker to show the results of a request in the autocomplete search bar
     private Marker researchResponseMarker;
 
-
-    // Used for selecting the current place. (Not needed anymore ?)
-    private static final int M_MAX_ENTRIES = 5;
-    private String[] mLikelyPlaceNames;
-    private String[] mLikelyPlaceAddresses;
-    private String[] mLikelyPlaceAttributions;
-    private LatLng[] mLikelyPlaceLatLngs;
+    // Markers for all the 20 possible results of the request of places around the user
+    // Creating 20 different values is not very "clean" but dynamically creating variables or using list was not working
+    private Marker m1;
+    private Marker m2;
+    private Marker m3;
+    private Marker m4;
+    private Marker m5;
+    private Marker m6;
+    private Marker m7;
+    private Marker m8;
+    private Marker m9;
+    private Marker m10;
+    private Marker m11;
+    private Marker m12;
+    private Marker m13;
+    private Marker m14;
+    private Marker m15;
+    private Marker m16;
+    private Marker m17;
+    private Marker m18;
+    private Marker m19;
+    private Marker m20;
 
 
 
@@ -247,7 +264,7 @@ public class NewMaps extends AppCompatActivity implements OnMapReadyCallback, Go
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         // Inflate the menu; this adds items to the action bar if it is present.
-        getMenuInflater().inflate(R.menu.menu_new_maps, menu);
+        getMenuInflater().inflate(R.menu.menu_simple, menu);
         return true;
     }
 
@@ -354,6 +371,8 @@ public class NewMaps extends AppCompatActivity implements OnMapReadyCallback, Go
 
         // Get the current location of the device and set the position of the map.
         getDeviceLocation();
+
+        setMarkersAroundUser();
 
     }
 
@@ -591,7 +610,13 @@ public class NewMaps extends AppCompatActivity implements OnMapReadyCallback, Go
     }
 
 
-
+    /** ********************************************************************************************
+     *  Method that retrieve from google Places API the 20 closest places from the user (we can't get
+     *  more results for a request, the web API could go up to 60 results but not the android API).
+     *
+     *  The results are then filtered, and for the results that have a type among the ones we want
+     * *********************************************************************************************
+     */
     private void setMarkersAroundUser(){
         // Here the location needs to be enabled, if is not the case we ask it (but they should already have been asked during the first launch f the class)
         if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
@@ -612,29 +637,110 @@ public class NewMaps extends AppCompatActivity implements OnMapReadyCallback, Go
                 public void onResult(PlaceLikelihoodBuffer likelyPlaces) {
                     System.out.println("onResult called ");
                     boolean cameraMoved = false;
+                    int i=1;
                     for (PlaceLikelihood placeLikelihood : likelyPlaces) {
                         float placeLkyhd = placeLikelihood.getLikelihood();
                         Place place = placeLikelihood.getPlace();
                         LatLng placeLatLng = place.getLatLng();
-                        //Moving the camera to first returned place (most likely place) --> would be better with real place !! and blue current place marker
-                        if(!cameraMoved){
-                            mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(placeLatLng,DEFAULT_ZOOM));//newLatLng(placeLatLng));
-                            System.out.println("camera moved !");
-                            cameraMoved=true;
-                        }
 
                         String placeName = (String) place.getName();
-                        List<Integer> placeType = place.getPlaceTypes();
+                        List<Integer> placeTypes = place.getPlaceTypes();
 
                         String typeslist = "";
-                        for(int type : placeType){
+                        for(int type : placeTypes){
                             typeslist=typeslist+";"+type;
                         }
                         System.out.println("Place : "+placeName+" has likelyhood : "+placeLkyhd+" and types : "+typeslist);
                         //Log.i(TAG, String.format("Place '%s' has likelihood: %g",placeLikelihood.getPlace().getName(),placeLikelihood.getLikelihood()));
-                        mMap.addMarker(new MarkerOptions().position(placeLatLng).title(placeName));
 
-
+                        // Checking if the types of the places we just found match with the places we want to display.
+                        // If yes we display a marker
+                        if(PlaceTypesAreWanted(placeTypes)) {
+                            // The following lines are not really "clean" but i didn't found a better way to to that (lists or dynamically created variables were not working)
+                            switch (i) {
+                                case 1:
+                                    m1 = mMap.addMarker(new MarkerOptions().position(placeLatLng).title(placeName).icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ORANGE)).snippet("Click for more details ..."));
+                                    m1.setTag(new CustomTag(place));
+                                    break;
+                                case 2:
+                                    m2 = mMap.addMarker(new MarkerOptions().position(placeLatLng).title(placeName).icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ORANGE)).snippet("Click for more details ..."));
+                                    m2.setTag(new CustomTag(place));
+                                    break;
+                                case 3:
+                                    m3 = mMap.addMarker(new MarkerOptions().position(placeLatLng).title(placeName).icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ORANGE)).snippet("Click for more details ..."));
+                                    m3.setTag(new CustomTag(place));
+                                    break;
+                                case 4:
+                                    m4 = mMap.addMarker(new MarkerOptions().position(placeLatLng).title(placeName).icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ORANGE)).snippet("Click for more details ..."));
+                                    m4.setTag(new CustomTag(place));
+                                    break;
+                                case 5:
+                                    m5 = mMap.addMarker(new MarkerOptions().position(placeLatLng).title(placeName).icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ORANGE)).snippet("Click for more details ..."));
+                                    m5.setTag(new CustomTag(place));
+                                    break;
+                                case 6:
+                                    m6 = mMap.addMarker(new MarkerOptions().position(placeLatLng).title(placeName).icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ORANGE)).snippet("Click for more details ..."));
+                                    m6.setTag(new CustomTag(place));
+                                    break;
+                                case 7:
+                                    m7 = mMap.addMarker(new MarkerOptions().position(placeLatLng).title(placeName).icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ORANGE)).snippet("Click for more details ..."));
+                                    m7.setTag(new CustomTag(place));
+                                    break;
+                                case 8:
+                                    m8 = mMap.addMarker(new MarkerOptions().position(placeLatLng).title(placeName).icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ORANGE)).snippet("Click for more details ..."));
+                                    m8.setTag(new CustomTag(place));
+                                    break;
+                                case 9:
+                                    m9 = mMap.addMarker(new MarkerOptions().position(placeLatLng).title(placeName).icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ORANGE)).snippet("Click for more details ..."));
+                                    m9.setTag(new CustomTag(place));
+                                    break;
+                                case 10:
+                                    m10 = mMap.addMarker(new MarkerOptions().position(placeLatLng).title(placeName).icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ORANGE)).snippet("Click for more details ..."));
+                                    m10.setTag(new CustomTag(place));
+                                    break;
+                                case 11:
+                                    m11 = mMap.addMarker(new MarkerOptions().position(placeLatLng).title(placeName).icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ORANGE)).snippet("Click for more details ..."));
+                                    m11.setTag(new CustomTag(place));
+                                    break;
+                                case 12:
+                                    m12 = mMap.addMarker(new MarkerOptions().position(placeLatLng).title(placeName).icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ORANGE)).snippet("Click for more details ..."));
+                                    m12.setTag(new CustomTag(place));
+                                    break;
+                                case 13:
+                                    m13 = mMap.addMarker(new MarkerOptions().position(placeLatLng).title(placeName).icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ORANGE)).snippet("Click for more details ..."));
+                                    m13.setTag(new CustomTag(place));
+                                    break;
+                                case 14:
+                                    m14 = mMap.addMarker(new MarkerOptions().position(placeLatLng).title(placeName).icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ORANGE)).snippet("Click for more details ..."));
+                                    m14.setTag(new CustomTag(place));
+                                    break;
+                                case 15:
+                                    m15 = mMap.addMarker(new MarkerOptions().position(placeLatLng).title(placeName).icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ORANGE)).snippet("Click for more details ..."));
+                                    m15.setTag(new CustomTag(place));
+                                    break;
+                                case 16:
+                                    m16 = mMap.addMarker(new MarkerOptions().position(placeLatLng).title(placeName).icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ORANGE)).snippet("Click for more details ..."));
+                                    m16.setTag(new CustomTag(place));
+                                    break;
+                                case 17:
+                                    m17 = mMap.addMarker(new MarkerOptions().position(placeLatLng).title(placeName).icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ORANGE)).snippet("Click for more details ..."));
+                                    m17.setTag(new CustomTag(place));
+                                    break;
+                                case 18:
+                                    m18 = mMap.addMarker(new MarkerOptions().position(placeLatLng).title(placeName).icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ORANGE)).snippet("Click for more details ..."));
+                                    m18.setTag(new CustomTag(place));
+                                    break;
+                                case 19:
+                                    m19 = mMap.addMarker(new MarkerOptions().position(placeLatLng).title(placeName).icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ORANGE)).snippet("Click for more details ..."));
+                                    m19.setTag(new CustomTag(place));
+                                    break;
+                                case 20:
+                                    m20 = mMap.addMarker(new MarkerOptions().position(placeLatLng).title(placeName).icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ORANGE)).snippet("Click for more details ..."));
+                                    m20.setTag(new CustomTag(place));
+                                    break;
+                            }
+                        }
+                        i++;
                     }
                     likelyPlaces.release();
                 }
@@ -644,14 +750,48 @@ public class NewMaps extends AppCompatActivity implements OnMapReadyCallback, Go
     }
 
 
-    /** ***************************************************
+    /** ********************************************************************************************
+     * Method that returns "true" is a place has a type is the following list of possible place types :
+     *      TYPE_RESTAURANT     : value = 79
+     *      TYPE_FOOD           : value = 38
+     * Monuments doesn't exist in places database, for 'Monuments' we could use the following elements :
+     *      TYPE_AQUARIUM       : value = 4
+     *      TYPE_ART_GALLERY    : value = 5
+     *      TYPE_CEMETERY       : value = 22
+     *      TYPE_CHURCH         : value = 23
+     *      TYPE_CITY_HALL      : value = 24
+     *      TYPE_EMBASSY        : value = 33
+     *      TYPE_HINDU_TEMPLE   : value = 48
+     *      TYPE_MOSQUE         : value = 62
+     *      TYPE_MUSEUM         : value = 66
+     *      TYPE_PARK           : value = 69
+     *	    TYPE_SYNAGOGUE      : value = 90
+     *      TYPE_TRAVEL_AGENCY  : value = 93
+     *  ********************************************************************************************
+     * @param placeTypes
+     * @return
+     */
+    private boolean PlaceTypesAreWanted(List<Integer> placeTypes){
+        List<Integer> wantedTypes = new ArrayList<>(Arrays.asList(79, 38, 4, 5, 22, 23, 24, 33, 48, 62, 66, 69, 90, 93));
+        boolean areCurrentTypesWanted = false;
+        // for each of the times of the given place, we check if it matches with one of the types we want, if yes the function will return tru and the place will be displayed
+        for(int type : placeTypes){
+            if(wantedTypes.contains(type)){
+                areCurrentTypesWanted = true;
+            }
+        }
+        return areCurrentTypesWanted;
+    }
+
+
+    /** ********************************************************************************************
      *  Allowing the use of the results of the "Autocomplete" Places search bar
      *   The search bar is set here to retrieve only results that are of type 'Establishment'
      *      and only establishments that are around the adapted window around the user (set by the 'accessibleWindowAroundUser' method) can be searched
      *
      *   When a Place is selected through the search bar, display a marker on its position on the map. The info window of the marker is automatically activated.
      *   The camera is then centered on this position.
-     *  ***************************************************
+     *  ********************************************************************************************
      */
     private void initializeSearchBar(){
         PlaceAutocompleteFragment autocompleteFragment = (PlaceAutocompleteFragment) getFragmentManager().findFragmentById(R.id.place_autocomplete_fragment);

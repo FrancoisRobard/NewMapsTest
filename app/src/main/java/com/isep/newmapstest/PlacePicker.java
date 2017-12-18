@@ -90,7 +90,7 @@ public class PlacePicker extends AppCompatActivity implements GoogleApiClient.On
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         // Inflate the menu; this adds items to the action bar if it is present.
-        getMenuInflater().inflate(R.menu.menu_new_maps, menu);
+        getMenuInflater().inflate(R.menu.menu_simple, menu);
         return true;
     }
 
